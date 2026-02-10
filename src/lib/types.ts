@@ -11,5 +11,6 @@ export type Booking = {
         first_name: string;
         last_name: string;
         avatar_url?: string;
+        booking_count?: number;
     };
 };

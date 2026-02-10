@@ -16,11 +16,17 @@ interface SlotCardProps {
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { User as UserIcon } from 'lucide-react';
+import { calculateLevel } from '@/lib/gamification';
 
 export function SlotCard({ slot, booking, currentUser, date, onClick }: SlotCardProps) {
     const isOwn = booking?.user_id === currentUser?.id;
     const isPast = isSlotInPast(date, slot);
     const isFree = !booking;
+
+    // Calculate level if booking exists
+    const level = booking?.profiles?.booking_count !== undefined
+        ? calculateLevel(booking.profiles.booking_count * 10)
+        : null;
 
     let statusColor = "bg-card";
     let statusBorder = "border-border";
@@ -84,13 +90,25 @@ export function SlotCard({ slot, booking, currentUser, date, onClick }: SlotCard
                         </div>
                     )}
                     {booking && (
-                        <div className="flex-shrink-0 ml-2">
-                            <Avatar className="h-10 w-10 border-2 border-background shadow-sm">
-                                <AvatarImage src={booking.profiles?.avatar_url || ''} />
-                                <AvatarFallback className="bg-muted text-muted-foreground">
-                                    {booking.profiles?.first_name?.[0]}{booking.profiles?.last_name?.[0]}
-                                </AvatarFallback>
-                            </Avatar>
+                        <div className="flex flex-col items-center ml-2">
+                            <div className="relative">
+                                <Avatar className="h-10 w-10 border-2 border-background shadow-sm">
+                                    <AvatarImage src={booking.profiles?.avatar_url || ''} />
+                                    <AvatarFallback className="bg-muted text-muted-foreground">
+                                        {booking.profiles?.first_name?.[0]}{booking.profiles?.last_name?.[0]}
+                                    </AvatarFallback>
+                                </Avatar>
+                                {level && (
+                                    <div className="absolute -bottom-1 -right-1 bg-primary text-primary-foreground p-0.5 rounded-full shadow-sm border border-background">
+                                        <level.icon className="h-3 w-3" />
+                                    </div>
+                                )}
+                            </div>
+                            {level && (
+                                <span className="text-[10px] font-medium text-muted-foreground mt-1 text-center leading-tight max-w-[80px] break-words">
+                                    {level.title}
+                                </span>
+                            )}
                         </div>
                     )}
                 </div>

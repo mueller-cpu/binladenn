@@ -38,7 +38,8 @@ export default function OverviewPage() {
           first_name,
           last_name,
           banned_until,
-          avatar_url
+          avatar_url,
+          booking_count
         )
       `)
             .lt('start_time', end.toISOString())
