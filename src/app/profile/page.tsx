@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
+import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,6 +15,8 @@ import { Toaster } from 'sonner';
 
 export default function ProfilePage() {
     const { user, isLoading: authLoading, signOut } = useAuth();
+    const { theme, setTheme } = useTheme();
+    const [mounted, setMounted] = useState(false);
     const [profile, setProfile] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -23,6 +26,10 @@ export default function ProfilePage() {
     const [firstName, setFirstName] = useState('');
     const [lastName, setLastName] = useState('');
     const [phone, setPhone] = useState('');
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     useEffect(() => {
         if (!authLoading && !user) {
@@ -108,6 +115,41 @@ export default function ProfilePage() {
                         <div className="space-y-2">
                             <Label htmlFor="phone">Telefon (Optional)</Label>
                             <Input id="phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
+                        </div>
+                        <div className="pt-4 border-t">
+                            <Label className="text-base font-semibold mb-2 block">Aussehen</Label>
+                            <div className="flex items-center gap-2 mt-2">
+                                {mounted ? (
+                                    <>
+                                        <Button
+                                            type="button"
+                                            variant={theme === 'light' ? 'default' : 'outline'}
+                                            size="sm"
+                                            onClick={() => setTheme('light')}
+                                        >
+                                            Hell
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            variant={theme === 'dark' ? 'default' : 'outline'}
+                                            size="sm"
+                                            onClick={() => setTheme('dark')}
+                                        >
+                                            Dunkel
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            variant={theme === 'system' ? 'default' : 'outline'}
+                                            size="sm"
+                                            onClick={() => setTheme('system')}
+                                        >
+                                            System
+                                        </Button>
+                                    </>
+                                ) : (
+                                    <div className="h-9 w-48 bg-muted animate-pulse rounded-md" />
+                                )}
+                            </div>
                         </div>
                     </CardContent>
                     <CardFooter className="flex justify-between">

@@ -15,7 +15,7 @@ interface BookingDialogProps {
     onClose: () => void;
     selectedDate: Date;
     selectedSlot: TimeSlot | null;
-    onConfirm: (duration: 4 | 8, notes: string) => Promise<void>;
+    onConfirm: (duration: number, notes: string) => Promise<void>;
     isProcessing: boolean;
 }
 
@@ -27,16 +27,15 @@ export function BookingDialog({
     onConfirm,
     isProcessing
 }: BookingDialogProps) {
-    const [duration, setDuration] = useState<4 | 8>(4);
     const [notes, setNotes] = useState('');
 
     if (!selectedSlot) return null;
 
     const handleConfirm = async () => {
+        if (!selectedSlot) return;
         try {
-            await onConfirm(duration, notes);
+            await onConfirm(selectedSlot.duration, notes);
             onClose();
-            setDuration(4);
             setNotes('');
         } catch (error) {
             // Error handling is done in parent
@@ -54,17 +53,10 @@ export function BookingDialog({
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
                     <div className="grid gap-2">
-                        <Label htmlFor="duration">Dauer</Label>
-                        <RadioGroup defaultValue="4" value={duration.toString()} onValueChange={(v) => setDuration(parseInt(v) as 4 | 8)}>
-                            <div className="flex items-center space-x-2">
-                                <RadioGroupItem value="4" id="r4" />
-                                <Label htmlFor="r4">4 Stunden (Standard)</Label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                                <RadioGroupItem value="8" id="r8" />
-                                <Label htmlFor="r8">8 Stunden (Doppelbuchung)</Label>
-                            </div>
-                        </RadioGroup>
+                        <Label>Dauer</Label>
+                        <div className="p-2 bg-muted rounded-md text-sm">
+                            {selectedSlot.duration} Stunden
+                        </div>
                     </div>
                     <div className="grid gap-2">
                         <Label htmlFor="notes">Notiz (Optional)</Label>

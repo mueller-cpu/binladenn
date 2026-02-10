@@ -6,15 +6,13 @@ export type TimeSlot = {
     startTime: string; // HH:mm
     endTime: string;   // HH:mm
     startHour: number;
+    duration: number; // in hours
 };
 
 export const TIME_SLOTS: TimeSlot[] = [
-    { id: 1, label: "00:00 - 04:00", startTime: "00:00", endTime: "04:00", startHour: 0 },
-    { id: 2, label: "04:00 - 08:00", startTime: "04:00", endTime: "08:00", startHour: 4 },
-    { id: 3, label: "08:00 - 12:00", startTime: "08:00", endTime: "12:00", startHour: 8 },
-    { id: 4, label: "12:00 - 16:00", startTime: "12:00", endTime: "16:00", startHour: 12 },
-    { id: 5, label: "16:00 - 20:00", startTime: "16:00", endTime: "20:00", startHour: 16 },
-    { id: 6, label: "20:00 - 00:00", startTime: "20:00", endTime: "00:00", startHour: 20 },
+    { id: 1, label: "Vormittag (08:00 - 12:00)", startTime: "08:00", endTime: "12:00", startHour: 8, duration: 4 },
+    { id: 2, label: "Nachmittag (12:00 - 18:00)", startTime: "12:00", endTime: "18:00", startHour: 12, duration: 6 },
+    { id: 3, label: "Nacht (18:00 - 08:00)", startTime: "18:00", endTime: "08:00", startHour: 18, duration: 14 },
 ];
 
 export function getSlotDate(baseDate: Date, slot: TimeSlot): Date {

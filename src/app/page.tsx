@@ -10,6 +10,8 @@ import { supabase } from '@/lib/supabase';
 import { TimeSlot, getSlotDate } from '@/lib/booking-utils';
 import { toast } from 'sonner';
 import { Toaster } from 'sonner';
+import { StartScreen } from '@/components/onboarding/StartScreen';
+import { FeatureSlider } from '@/components/onboarding/FeatureSlider';
 
 export default function Home() {
   const { user, isLoading: authLoading } = useAuth();
@@ -17,12 +19,28 @@ export default function Home() {
   const [bookings, setBookings] = useState<any[]>([]); // TODO: Type properly
   const [loading, setLoading] = useState(true);
 
+  // Onboarding State
+  const [view, setView] = useState<'loading' | 'start' | 'onboarding' | 'app'>('loading');
+
+  useEffect(() => {
+    // Always show start screen first as requested
+    setView('start');
+  }, []);
+
+  const handleStart = () => {
+    // User requested to always show start screen/onboarding
+    setView('onboarding');
+  };
+
+  const handleOnboardingComplete = () => {
+    localStorage.setItem('onboardingSeen', 'true');
+    setView('app');
+  };
+
   const fetchBookings = async () => {
     if (!supabase) return;
     setLoading(true);
 
-    // Fetch bookings for the selected day
-    // We need to cover the full 24h of the selected day
     const start = startOfDay(currentDate);
     const end = addDays(start, 1);
 
@@ -30,13 +48,14 @@ export default function Home() {
       .from('bookings')
       .select(`
         *,
-        profiles (
+        profiles:profiles!bookings_user_id_fkey (
           first_name,
-          last_name
+          last_name,
+          banned_until
         )
       `)
-      .gte('start_time', start.toISOString())
-      .lt('start_time', end.toISOString());
+      .lt('start_time', end.toISOString())
+      .gt('end_time', start.toISOString());
 
     if (error) {
       console.error('Error fetching bookings:', JSON.stringify(error, null, 2));
@@ -54,35 +73,29 @@ export default function Home() {
   const handlePrevDay = () => setCurrentDate(d => addDays(d, -1));
   const handleNextDay = () => setCurrentDate(d => addDays(d, 1));
 
-  const handleBook = async (slot: TimeSlot, duration: 4 | 8, notes: string) => {
+  const handleBook = async (slot: TimeSlot, duration: number, notes: string) => {
     if (!user || !supabase) return;
+
+    // Check if user is banned
+    const { data: profile } = await supabase.from('profiles').select('banned_until').eq('id', user.id).single();
+    if (profile?.banned_until) {
+      const bannedUntil = new Date(profile.banned_until);
+      if (bannedUntil > new Date()) {
+        toast.error(`Du bist bis zum ${format(bannedUntil, 'dd.MM.yyyy HH:mm')} gesperrt.`);
+        return;
+      }
+    }
 
     const start = getSlotDate(currentDate, slot);
     const end = new Date(start);
-    end.setHours(start.getHours() + duration);
+    end.setHours(start.getHours() + slot.duration);
 
-    // Optimistic update or refetch? Refetch is safer for MVP.
     const { error } = await supabase.from('bookings').insert({
       user_id: user.id,
       start_time: start.toISOString(),
       end_time: end.toISOString(),
-      duration: duration,
-      booking_type: 'regular' // notes not yet in schema? wait, schema doesn't have notes column? 
-      // Spec F-004 says "Optional: Notiz-Feld" in UI, but schema "cancellation_reason" exists.
-      // Schema in 00_init_schema.sql does NOT have a notes column for active bookings!
-      // Constraint: "Use generate_image tool to create a working demonstration" -> No, this is logic.
-      // Let's check schema again.
-      // "cancellation_reason TEXT" exists.
-      // I missed adding a 'notes' column in the schema implementation?
-      // Let's re-read the spec.
-      // Spec 438: "Optional: Notiz-Feld" in dialog.
-      // Schema 5.2: No notes/description column. 
-      // I should add it or ignore it. For now, I'll ignore storing it in DB to stick to schema, 
-      // OR I can add it to metadata if Supabase supports it? 
-      // Bookings table plain...
-      // I'll skip saving notes for now to strictly follow schema provided in spec 5.2.
-      // Wait, I should probably add it if the user wants it.
-      // Let's stick to the spec schema for now to avoid drift.
+      duration: slot.duration,
+      booking_type: 'regular'
     });
 
     if (error) {
@@ -98,9 +111,6 @@ export default function Home() {
 
   const handleCancel = async (bookingId: string) => {
     if (!supabase) return;
-    // Soft delete? Spec says: "User können eigene Buchungen jederzeit löschen".
-    // Schema says: status TEXT CHECK (status IN ('active', 'cancelled'))
-    // So update status to 'cancelled'.
 
     const { error } = await supabase
       .from('bookings')
@@ -116,7 +126,15 @@ export default function Home() {
     }
   };
 
-  if (authLoading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin" /></div>;
+  if (view === 'start') {
+    return <StartScreen onStart={handleStart} />;
+  }
+
+  if (view === 'onboarding') {
+    return <FeatureSlider onComplete={handleOnboardingComplete} />;
+  }
+
+  if (authLoading || view === 'loading') return <div className="flex justify-center p-8"><Loader2 className="animate-spin" /></div>;
 
   return (
     <div className="space-y-6">
@@ -153,6 +171,24 @@ export default function Home() {
           currentUser={user}
           onBook={handleBook}
           onCancel={handleCancel}
+          onReport={async (bookingId) => {
+            if (!supabase) return;
+            const { error } = await supabase.rpc('report_booking_abuse', { booking_id: bookingId });
+            if (error) toast.error("Fehler beim Melden.");
+            else { toast.success("Nutzer gemeldet und für 7 Tage gesperrt."); fetchBookings(); }
+          }}
+          onConfirmCharging={async (bookingId) => {
+            if (!supabase) return;
+            const { error } = await supabase.from('bookings').update({ charging_status: 'charging' }).eq('id', bookingId);
+            if (error) toast.error("Fehler beim Bestätigen.");
+            else { toast.success("Ladevorgang bestätigt."); fetchBookings(); }
+          }}
+          onUndoReport={async (bookingId) => {
+            if (!supabase) return;
+            const { error } = await supabase.rpc('undo_report_abuse', { booking_id: bookingId });
+            if (error) toast.error("Fehler beim Zurückziehen.");
+            else { toast.success("Meldung zurückgezogen. Sperre aufgehoben."); fetchBookings(); }
+          }}
         />
       )}
     </div>
