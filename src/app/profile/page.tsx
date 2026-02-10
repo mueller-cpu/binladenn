@@ -13,6 +13,9 @@ import { toast } from 'sonner';
 import { Loader2, Upload, User as UserIcon } from 'lucide-react';
 import { Toaster } from 'sonner';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Progress } from "@/components/ui/progress";
+import { calculateLevel, getNextLevel, Level } from '@/lib/gamification';
 
 export default function ProfilePage() {
     const { user, isLoading: authLoading, signOut } = useAuth();
@@ -29,6 +32,11 @@ export default function ProfilePage() {
     const [phone, setPhone] = useState('');
     const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
+    // Gamification State
+    const [points, setPoints] = useState(0);
+    const [level, setLevel] = useState<Level | null>(null);
+    const [nextLevel, setNextLevel] = useState<Level | null>(null);
+
     useEffect(() => {
         setMounted(true);
     }, []);
@@ -40,6 +48,7 @@ export default function ProfilePage() {
 
         if (user && supabase) {
             fetchProfile();
+            fetchGamificationStats();
         }
     }, [user, authLoading, router]);
 
@@ -63,6 +72,27 @@ export default function ProfilePage() {
             setAvatarUrl(data.avatar_url || null);
         }
         setLoading(false);
+    };
+
+    const fetchGamificationStats = async () => {
+        if (!user || !supabase) return;
+
+        // Count COMPLETED bookings (in the past)
+        const now = new Date().toISOString();
+        const { count, error } = await supabase
+            .from('bookings')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', user.id)
+            .eq('status', 'active')
+            .lt('end_time', now);
+
+        if (!error && count !== null) {
+            const calculatedPoints = count * 10;
+            setPoints(calculatedPoints);
+            const currentLevel = calculateLevel(calculatedPoints);
+            setLevel(currentLevel);
+            setNextLevel(getNextLevel(currentLevel));
+        }
     };
 
     const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -138,10 +168,49 @@ export default function ProfilePage() {
                 <form onSubmit={handleSave}>
                     <CardContent className="space-y-6">
                         <div className="flex flex-col items-center gap-4">
-                            <Avatar className="h-24 w-24">
-                                <AvatarImage src={avatarUrl || ''} />
-                                <AvatarFallback><UserIcon className="h-10 w-10 opacity-50" /></AvatarFallback>
-                            </Avatar>
+                            <div className="relative">
+                                <Avatar className="h-24 w-24">
+                                    <AvatarImage src={avatarUrl || ''} />
+                                    <AvatarFallback><UserIcon className="h-10 w-10 opacity-50" /></AvatarFallback>
+                                </Avatar>
+                                {level && (
+                                    <Dialog>
+                                        <DialogTrigger asChild>
+                                            <div className="absolute -bottom-2 -right-2 bg-primary text-primary-foreground p-1.5 rounded-full shadow-lg cursor-pointer hover:scale-110 transition-transform">
+                                                <level.icon className="h-5 w-5" />
+                                            </div>
+                                        </DialogTrigger>
+                                        <DialogContent>
+                                            <DialogHeader>
+                                                <DialogTitle className="flex items-center gap-2">
+                                                    <level.icon className="h-6 w-6 text-primary" />
+                                                    {level.title}
+                                                </DialogTitle>
+                                                <DialogDescription>
+                                                    {level.description}
+                                                </DialogDescription>
+                                            </DialogHeader>
+                                            <div className="py-4 space-y-4">
+                                                <div className="flex justify-between text-sm font-medium">
+                                                    <span>{points} Punkte</span>
+                                                    {nextLevel && <span>Ziel: {nextLevel.minPoints}</span>}
+                                                </div>
+                                                {nextLevel && (
+                                                    <Progress value={((points - level.minPoints) / (nextLevel.minPoints - level.minPoints)) * 100} />
+                                                )}
+                                                {!nextLevel && <p className="text-sm text-center text-muted-foreground">Maximales Level erreicht!</p>}
+                                            </div>
+                                        </DialogContent>
+                                    </Dialog>
+                                )}
+                            </div>
+
+                            {level && (
+                                <div className="text-center -mt-2">
+                                    <p className="font-bold text-lg">{level.title}</p>
+                                    <p className="text-xs text-muted-foreground">{points} Punkte</p>
+                                </div>
+                            )}
                             <div className="flex items-center gap-2">
                                 <Button type="button" variant="outline" size="sm" className="relative cursor-pointer" disabled={uploading}>
                                     {uploading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Upload className="h-4 w-4 mr-2" />}
