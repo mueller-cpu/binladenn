@@ -133,21 +133,21 @@ export default function OverviewPage() {
                     </p>
                 </div>
 
-                <div className="flex flex-col gap-2 items-end">
-                    <div className="flex items-center p-1 bg-muted rounded-lg border">
+                <div className="flex flex-col gap-2 items-start sm:items-end w-full sm:w-auto">
+                    <div className="flex items-center p-1 bg-muted rounded-lg border w-full sm:w-auto">
                         <Button
-                            variant={viewMode === 'day' ? 'secondary' : 'ghost'}
+                            variant="ghost"
                             size="sm"
                             onClick={() => setViewMode('day')}
-                            className="text-xs h-7 w-16"
+                            className={`flex-1 sm:flex-none text-xs h-7 w-16 transition-all ${viewMode === 'day' ? 'bg-background text-foreground shadow-sm font-medium' : 'text-muted-foreground hover:text-foreground'}`}
                         >
                             Tag
                         </Button>
                         <Button
-                            variant={viewMode === 'week' ? 'secondary' : 'ghost'}
+                            variant="ghost"
                             size="sm"
                             onClick={() => setViewMode('week')}
-                            className="text-xs h-7 w-16"
+                            className={`flex-1 sm:flex-none text-xs h-7 w-16 transition-all ${viewMode === 'week' ? 'bg-background text-foreground shadow-sm font-medium' : 'text-muted-foreground hover:text-foreground'}`}
                         >
                             Woche
                         </Button>
