@@ -9,7 +9,7 @@ export function DesktopSidebar() {
     const pathname = usePathname();
 
     const links = [
-        { href: "/", label: "Overview", icon: Home },
+        { href: "/overview", label: "Overview", icon: Home },
         { href: "/bookings", label: "My Bookings", icon: List },
         { href: "/profile", label: "Profile", icon: User },
     ];

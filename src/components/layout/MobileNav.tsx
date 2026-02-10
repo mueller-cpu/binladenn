@@ -9,7 +9,7 @@ export function MobileNav() {
     const pathname = usePathname();
 
     const links = [
-        { href: "/", label: "Home", icon: Home },
+        { href: "/overview", label: "Home", icon: Home },
         { href: "/bookings", label: "My Bookings", icon: List },
         { href: "/profile", label: "Profile", icon: User },
     ];

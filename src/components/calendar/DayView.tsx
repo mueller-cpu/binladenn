@@ -9,21 +9,10 @@ import { User } from '@supabase/supabase-js';
 import { BookingDialog } from '../booking/BookingDialog';
 import { toast } from 'sonner';
 
-// Define booking type locally for now, moving to types later
-type Booking = {
-    id: string;
-    user_id: string;
-    start_time: string;
-    end_time: string;
-    duration: number;
-    status: 'active' | 'cancelled';
-    charging_status?: 'charging' | 'not_charging' | 'unknown';
-    reporter_id?: string;
-    profiles?: {
-        first_name: string;
-        last_name: string;
-    };
-};
+import { Booking } from '@/lib/types';
+import { SlotCard } from './SlotCard';
+
+// Removed local Booking type definition
 
 interface DayViewProps {
     date: Date;
@@ -32,7 +21,7 @@ interface DayViewProps {
     onBook: (slot: TimeSlot, duration: number, notes: string) => Promise<void>;
     onCancel: (bookingId: string) => Promise<void>;
     onReport: (bookingId: string) => Promise<void>;
-    onUndoReport: (bookingId: string) => Promise<void>; // New prop
+    onUndoReport: (bookingId: string) => Promise<void>;
     onConfirmCharging: (bookingId: string) => Promise<void>;
 }
 
@@ -40,7 +29,6 @@ export function DayView({ date, bookings, currentUser, onBook, onCancel, onRepor
     const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
-
 
     const isSlotOccupied = (slot: TimeSlot) => {
         const slotStart = new Date(date);
@@ -52,7 +40,6 @@ export function DayView({ date, bookings, currentUser, onBook, onCancel, onRepor
             if (b.status !== 'active') return false;
             const bStart = new Date(b.start_time);
             const bEnd = new Date(b.end_time);
-            // Overlap if booking starts before slot ends AND booking ends after slot starts
             return bStart < slotEnd && bEnd > slotStart;
         });
     };
@@ -66,7 +53,6 @@ export function DayView({ date, bookings, currentUser, onBook, onCancel, onRepor
         const booking = isSlotOccupied(slot);
         if (booking) {
             if (booking.user_id === currentUser.id) {
-                // Own booking options
                 if (confirm("Möchtest du diese Buchung verwalten?")) {
                     const action = prompt("Tippe 'storno' zum Stornieren oder 'laden' zum Bestätigen des Ladens:");
                     if (action === 'storno') {
@@ -76,9 +62,6 @@ export function DayView({ date, bookings, currentUser, onBook, onCancel, onRepor
                     }
                 }
             } else {
-                // Other booking options
-                // Check if I am the reporter
-                // Note: reporter_id is optional in Booking type, so we check existence
                 const isReporter = booking.reporter_id === currentUser.id;
 
                 if (booking.charging_status === 'not_charging' && isReporter) {
@@ -111,8 +94,7 @@ export function DayView({ date, bookings, currentUser, onBook, onCancel, onRepor
         if (!selectedSlot) return;
         setIsProcessing(true);
         try {
-            // Pass duration from slot
-            await onBook(selectedSlot, selectedSlot.duration as 4 | 8, notes);
+            await onBook(selectedSlot, selectedSlot.duration as 4 | 8, notes); // Duration ignored, taken from slot
             toast.success("Buchung erfolgreich!");
         } catch (e) {
             console.error("Booking error caught in view:", JSON.stringify(e, null, 2));
@@ -126,68 +108,16 @@ export function DayView({ date, bookings, currentUser, onBook, onCancel, onRepor
     return (
         <>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {TIME_SLOTS.map((slot) => {
-                    const booking = isSlotOccupied(slot);
-                    const isOwn = booking?.user_id === currentUser?.id;
-                    const isPast = isSlotInPast(date, slot);
-                    const isFree = !booking;
-
-                    let statusColor = "bg-card"; // Default
-                    let statusBorder = "border-border";
-
-                    if (isFree) {
-                        statusColor = "bg-green-50/50 hover:bg-green-100/50 dark:bg-[hsl(var(--neon-green)/0.15)] dark:hover:bg-[hsl(var(--neon-green)/0.25)] cursor-pointer";
-                        statusBorder = "border-green-200 dark:border-[hsl(var(--neon-green)/0.5)]";
-                    } else if (isOwn) {
-                        statusColor = "bg-blue-50/80 hover:bg-blue-100/80 dark:bg-blue-900/40 dark:hover:bg-blue-900/60 cursor-pointer";
-                        statusBorder = "border-blue-300 dark:border-blue-700";
-                    } else {
-                        // Check charging status for others
-                        if (booking.charging_status === 'not_charging') {
-                            statusColor = "bg-red-200 dark:bg-red-900/80"; // Reported!
-                            statusBorder = "border-red-500";
-                        } else if (booking.charging_status === 'charging') {
-                            statusColor = "bg-green-100 dark:bg-green-900/40"; // Good citizen
-                            statusBorder = "border-green-500";
-                        } else {
-                            statusColor = "bg-red-50/50 dark:bg-red-950/20";
-                            statusBorder = "border-red-200 dark:border-red-800";
-                        }
-                    }
-
-                    if (isPast && isFree) {
-                        statusColor = "bg-muted/50";
-                        statusBorder = "border-muted";
-                    }
-
-                    return (
-                        <Card
-                            key={slot.id}
-                            className={cn("transition-all border-2", statusColor, statusBorder)}
-                            onClick={() => handleSlotClick(slot)}
-                        >
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium">
-                                    {slot.label}
-                                </CardTitle>
-                                {booking && isOwn && <span className="text-xs font-bold text-blue-600">DEINE BUCHUNG</span>}
-                                {booking && booking.charging_status === 'charging' && <span className="text-xs font-bold text-green-600">LÄDT</span>}
-                                {booking && booking.charging_status === 'not_charging' && <span className="text-xs font-bold text-red-600">STOPP!</span>}
-                            </CardHeader>
-                            <CardContent>
-                                <div className="text-2xl font-bold">
-                                    {isFree ? (isPast ? "Vergangen" : "Frei") : (isOwn ? "Gebucht" : "Belegt")}
-                                </div>
-                                <p className="text-xs text-muted-foreground mt-1">
-                                    {booking ?
-                                        `Gebucht von ${booking.profiles?.first_name || 'Unbekannt'} ${booking.profiles?.last_name || ''}` :
-                                        (isPast ? "Nicht mehr buchbar" : "Tippen zum Buchen")
-                                    }
-                                </p>
-                            </CardContent>
-                        </Card>
-                    );
-                })}
+                {TIME_SLOTS.map((slot) => (
+                    <SlotCard
+                        key={slot.id}
+                        slot={slot}
+                        booking={isSlotOccupied(slot)}
+                        currentUser={currentUser}
+                        date={date}
+                        onClick={() => handleSlotClick(slot)}
+                    />
+                ))}
             </div>
 
             <BookingDialog
