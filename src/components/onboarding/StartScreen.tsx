@@ -13,7 +13,7 @@ export function StartScreen({ onStart }: { onStart: () => void }) {
     if (!mounted) return null;
 
     return (
-        <div className="flex flex-col items-center justify-between h-[100dvh] bg-black text-white p-6 relative overflow-hidden">
+        <div className="fixed inset-0 z-[100] flex flex-col items-center justify-between h-[100dvh] bg-background text-foreground p-6 overflow-hidden">
             {/* Background glow effects */}
             <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-64 h-64 bg-[hsl(var(--neon-green))] opacity-20 blur-[100px] rounded-full pointer-events-none" />
 

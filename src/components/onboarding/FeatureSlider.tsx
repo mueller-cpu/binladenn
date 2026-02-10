@@ -37,7 +37,7 @@ export function FeatureSlider({ onComplete }: { onComplete: () => void }) {
     };
 
     return (
-        <div className="flex flex-col h-[100dvh] bg-background text-foreground relative overflow-hidden">
+        <div className="fixed inset-0 z-[100] flex flex-col h-[100dvh] bg-background text-foreground overflow-hidden">
             {/* Skip logic */}
             <div className="absolute top-4 right-4 z-20">
                 <Button variant="ghost" onClick={onComplete} className="text-muted-foreground hover:text-foreground">
