@@ -14,6 +14,9 @@ interface SlotCardProps {
     onClick: () => void;
 }
 
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { User as UserIcon } from 'lucide-react';
+
 export function SlotCard({ slot, booking, currentUser, date, onClick }: SlotCardProps) {
     const isOwn = booking?.user_id === currentUser?.id;
     const isPast = isSlotInPast(date, slot);
@@ -49,27 +52,48 @@ export function SlotCard({ slot, booking, currentUser, date, onClick }: SlotCard
 
     return (
         <Card
-            className={cn("transition-all border-2", statusColor, statusBorder)}
+            className={cn("transition-all border-2 relative overflow-hidden", statusColor, statusBorder)}
             onClick={onClick}
         >
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
                     {slot.label}
                 </CardTitle>
-                {booking && isOwn && <span className="text-xs font-bold text-blue-600">DEINE BUCHUNG</span>}
-                {booking && booking.charging_status === 'charging' && <span className="text-xs font-bold text-green-600">LÄDT</span>}
-                {booking && booking.charging_status === 'not_charging' && <span className="text-xs font-bold text-red-600">STOPP!</span>}
+                <div className="flex gap-2">
+                    {booking && isOwn && <span className="text-xs font-bold text-blue-600">DEINE BUCHUNG</span>}
+                    {booking && booking.charging_status === 'charging' && <span className="text-xs font-bold text-green-600">LÄDT</span>}
+                    {booking && booking.charging_status === 'not_charging' && <span className="text-xs font-bold text-red-600">STOPP!</span>}
+                </div>
             </CardHeader>
             <CardContent>
-                <div className="text-2xl font-bold">
-                    {isFree ? (isPast ? "Vergangen" : "Frei") : (isOwn ? "Gebucht" : "Belegt")}
+                <div className="flex justify-between items-center">
+                    <div>
+                        <div className="text-2xl font-bold">
+                            {isFree ? (isPast ? "Vergangen" : "Frei") : (isOwn ? "Gebucht" : "Belegt")}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                            {booking ?
+                                `Gebucht von ${booking.profiles?.first_name || 'Unbekannt'} ${booking.profiles?.last_name || ''}` :
+                                (isPast ? "Nicht mehr buchbar" : "Tippen zum Buchen")
+                            }
+                        </p>
+                    </div>
+                    {booking && booking.profiles?.avatar_url && (
+                        <div className="absolute right-2 top-1/2 -translate-y-1/2 opacity-20 pointer-events-none scale-150">
+                            {/* Creative Background Avatar Effect or just normal one? User said "rechten bereich". Let's do a clear one. */}
+                        </div>
+                    )}
+                    {booking && (
+                        <div className="flex-shrink-0 ml-2">
+                            <Avatar className="h-10 w-10 border-2 border-background shadow-sm">
+                                <AvatarImage src={booking.profiles?.avatar_url || ''} />
+                                <AvatarFallback className="bg-muted text-muted-foreground">
+                                    {booking.profiles?.first_name?.[0]}{booking.profiles?.last_name?.[0]}
+                                </AvatarFallback>
+                            </Avatar>
+                        </div>
+                    )}
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                    {booking ?
-                        `Gebucht von ${booking.profiles?.first_name || 'Unbekannt'} ${booking.profiles?.last_name || ''}` :
-                        (isPast ? "Nicht mehr buchbar" : "Tippen zum Buchen")
-                    }
-                </p>
             </CardContent>
         </Card>
     );

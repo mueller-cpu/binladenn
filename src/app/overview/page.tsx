@@ -37,7 +37,8 @@ export default function OverviewPage() {
         profiles:profiles!bookings_user_id_fkey (
           first_name,
           last_name,
-          banned_until
+          banned_until,
+          avatar_url
         )
       `)
             .lt('start_time', end.toISOString())

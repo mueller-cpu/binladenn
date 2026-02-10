@@ -10,22 +10,24 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Upload, User as UserIcon } from 'lucide-react';
 import { Toaster } from 'sonner';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 export default function ProfilePage() {
     const { user, isLoading: authLoading, signOut } = useAuth();
     const { theme, setTheme } = useTheme();
     const [mounted, setMounted] = useState(false);
-    const [profile, setProfile] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [uploading, setUploading] = useState(false);
     const router = useRouter();
 
     // Form state
     const [firstName, setFirstName] = useState('');
     const [lastName, setLastName] = useState('');
     const [phone, setPhone] = useState('');
+    const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
     useEffect(() => {
         setMounted(true);
@@ -55,12 +57,49 @@ export default function ProfilePage() {
             toast.error("Profil konnte nicht geladen werden.");
             console.error(error);
         } else {
-            setProfile(data);
             setFirstName(data.first_name || '');
             setLastName(data.last_name || '');
             setPhone(data.phone || '');
+            setAvatarUrl(data.avatar_url || null);
         }
         setLoading(false);
+    };
+
+    const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        if (!event.target.files || event.target.files.length === 0 || !user || !supabase) {
+            return;
+        }
+        setUploading(true);
+        const file = event.target.files[0];
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${user.id}/${Math.random()}.${fileExt}`;
+
+        try {
+            const { error: uploadError } = await supabase.storage
+                .from('avatars')
+                .upload(fileName, file, { upsert: true });
+
+            if (uploadError) throw uploadError;
+
+            // Get Public URL
+            const { data } = supabase.storage.from('avatars').getPublicUrl(fileName);
+            const publicUrl = data.publicUrl;
+
+            // Update Profile
+            const { error: updateError } = await supabase
+                .from('profiles')
+                .update({ avatar_url: publicUrl })
+                .eq('id', user.id);
+
+            if (updateError) throw updateError;
+
+            setAvatarUrl(publicUrl);
+            toast.success("Profilbild aktualisiert!");
+        } catch (error: any) {
+            toast.error("Upload fehlgeschlagen: " + error.message);
+        } finally {
+            setUploading(false);
+        }
     };
 
     const handleSave = async (e: React.FormEvent) => {
@@ -97,7 +136,27 @@ export default function ProfilePage() {
                     <CardTitle>Persönliche Daten</CardTitle>
                 </CardHeader>
                 <form onSubmit={handleSave}>
-                    <CardContent className="space-y-4">
+                    <CardContent className="space-y-6">
+                        <div className="flex flex-col items-center gap-4">
+                            <Avatar className="h-24 w-24">
+                                <AvatarImage src={avatarUrl || ''} />
+                                <AvatarFallback><UserIcon className="h-10 w-10 opacity-50" /></AvatarFallback>
+                            </Avatar>
+                            <div className="flex items-center gap-2">
+                                <Button type="button" variant="outline" size="sm" className="relative cursor-pointer" disabled={uploading}>
+                                    {uploading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Upload className="h-4 w-4 mr-2" />}
+                                    Bild hochladen
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        className="absolute inset-0 opacity-0 cursor-pointer"
+                                        onChange={handleAvatarUpload}
+                                        disabled={uploading}
+                                    />
+                                </Button>
+                            </div>
+                        </div>
+
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label htmlFor="firstName">Vorname</Label>
