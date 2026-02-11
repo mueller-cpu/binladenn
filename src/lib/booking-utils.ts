@@ -23,17 +23,12 @@ export function getSlotDate(baseDate: Date, slot: TimeSlot): Date {
 
 export function isSlotInPast(baseDate: Date, slot: TimeSlot): boolean {
     const slotStart = getSlotDate(baseDate, slot);
+    const slotEnd = addHours(slotStart, slot.duration);
     const now = new Date();
-    // Allow booking if slot started less than 1 hour ago? No, strict check for now.
-    // Actually spec says "Nicht in der Vergangenheit".
-    // If it's 09:00, can I book 08:00-12:00? Probably yes ideally, but let's be strict for now: if start time is past, it's past.
-    // Spec says "Late-Cancellation allowed", maybe late booking too?
-    // Let's use current time.
-    return isBefore(slotStart, now) && !isSameHour(slotStart, now);
-}
 
-function isSameHour(d1: Date, d2: Date) {
-    return d1.getHours() === d2.getHours() && isSameDay(d1, d2);
+    // Allow booking until the slot ends.
+    // If the slot end time is in the past, then the slot is in the past.
+    return isBefore(slotEnd, now);
 }
 
 export function getNextDays(count: number = 7): Date[] {
