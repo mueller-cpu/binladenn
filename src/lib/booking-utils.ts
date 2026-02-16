@@ -10,8 +10,8 @@ export type TimeSlot = {
 };
 
 export const TIME_SLOTS: TimeSlot[] = [
-    { id: 1, label: "Vormittag (08:00 - 12:00)", startTime: "08:00", endTime: "12:00", startHour: 8, duration: 4 },
-    { id: 2, label: "Nachmittag (12:00 - 18:00)", startTime: "12:00", endTime: "18:00", startHour: 12, duration: 6 },
+    { id: 1, label: "Vormittag (08:00 - 13:00)", startTime: "08:00", endTime: "13:00", startHour: 8, duration: 5 },
+    { id: 2, label: "Nachmittag (13:00 - 18:00)", startTime: "13:00", endTime: "18:00", startHour: 13, duration: 5 },
     { id: 3, label: "Nacht (18:00 - 08:00)", startTime: "18:00", endTime: "08:00", startHour: 18, duration: 14 },
 ];
 
