@@ -9,10 +9,12 @@ import { DayTimeline } from '@/components/calendar/DayTimeline';
 import { WeekGrid } from '@/components/calendar/WeekGrid';
 import { NextChargeCard } from '@/components/calendar/NextChargeCard';
 import { ReportDialog } from '@/components/calendar/ReportDialog';
+import { WhatsNewDialog } from '@/components/calendar/WhatsNewDialog';
 import { useRequireAuth } from '@/hooks/useRequireAuth';
 import { useBookings } from '@/hooks/useBookings';
 import { useSwipe } from '@/hooks/useSwipe';
 import type { Booking } from '@/lib/types';
+import { hasSeenAnnouncement, markAnnouncementSeen, safeLocalStorage } from '@/lib/announcement';
 
 const CLOCK_TICK_MS = 60_000;
 
@@ -49,6 +51,18 @@ function OverviewContent() {
     }, [requestedDate]);
     const [now, setNow] = useState(() => new Date());
     const [reportTarget, setReportTarget] = useState<Booking | null>(null);
+    const [showWhatsNew, setShowWhatsNew] = useState(false);
+
+    // Einmaliges Feature-Announcement pro Gerät, erst wenn die Session steht.
+    useEffect(() => {
+        if (authLoading || !user) return;
+        if (!hasSeenAnnouncement(safeLocalStorage())) setShowWhatsNew(true);
+    }, [authLoading, user]);
+
+    const closeWhatsNew = () => {
+        markAnnouncementSeen(safeLocalStorage());
+        setShowWhatsNew(false);
+    };
 
     useEffect(() => {
         const timer = setInterval(() => setNow(new Date()), CLOCK_TICK_MS);
@@ -137,6 +151,8 @@ function OverviewContent() {
                     )}
                 </div>
             </section>
+
+            <WhatsNewDialog open={showWhatsNew} onClose={closeWhatsNew} />
 
             <ReportDialog
                 booking={reportTarget}
