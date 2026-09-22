@@ -1,12 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { AuthCard } from '@/components/layout/AuthCard';
+import { useAuth } from '@/components/providers/AuthProvider';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
@@ -16,16 +17,21 @@ export default function RegisterPage() {
     const [lastName, setLastName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const { user, isLoading } = useAuth();
     const router = useRouter();
+
+    useEffect(() => {
+        if (!isLoading && user) {
+            router.replace('/overview');
+        }
+    }, [isLoading, user, router]);
 
     const handleRegister = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!supabase) return;
 
-        setIsLoading(true);
-
-        // Sign up with metadata
+        setIsSubmitting(true);
         const { error } = await supabase.auth.signUp({
             email,
             password,
@@ -33,67 +39,80 @@ export default function RegisterPage() {
                 data: {
                     first_name: firstName,
                     last_name: lastName,
-                }
-            }
+                },
+            },
         });
-
-        setIsLoading(false);
+        setIsSubmitting(false);
 
         if (error) {
             toast.error(error.message);
-        } else {
-            toast.success("Registrierung erfolgreich! Bitte überprüfe deine E-Mails.");
-            // Should we redirect to login or show verify message?
-            // Supabase often requires email verification by default.
-            // Let's assume verification is needed.
-            router.push('/login');
+            return;
         }
+        toast.success('Registrierung erfolgreich. Bitte bestätige deine E-Mail.');
+        router.replace('/login');
     };
 
     return (
-        <div className="flex items-center justify-center min-h-[80vh]">
-            <Card className="w-full max-w-md">
-                <CardHeader>
-                    <CardTitle className="text-2xl">Registrieren</CardTitle>
-                    <CardDescription>
-                        Erstelle einen Account für die Ladesäulen-App.
-                    </CardDescription>
-                </CardHeader>
-                <form onSubmit={handleRegister}>
-                    <CardContent className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="firstName">Vorname</Label>
-                                <Input id="firstName" value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="lastName">Nachname</Label>
-                                <Input id="lastName" value={lastName} onChange={(e) => setLastName(e.target.value)} required />
-                            </div>
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="email">E-Mail</Label>
-                            <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="password">Passwort (min. 8 Zeichen)</Label>
-                            <Input id="password" type="password" minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} required />
-                        </div>
-                    </CardContent>
-                    <CardFooter className="flex flex-col space-y-4">
-                        <Button type="submit" className="w-full" disabled={isLoading}>
-                            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Account erstellen
-                        </Button>
-                        <div className="text-center text-sm">
-                            Bereits registriert?{" "}
-                            <Link href="/login" className="text-primary hover:underline">
-                                Einloggen
-                            </Link>
-                        </div>
-                    </CardFooter>
-                </form>
-            </Card>
-        </div>
+        <AuthCard title="Registrieren" description="Erstelle deinen Account für die Ladesäule.">
+            <form onSubmit={handleRegister} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="firstName">Vorname</Label>
+                        <Input
+                            id="firstName"
+                            autoComplete="given-name"
+                            value={firstName}
+                            onChange={(e) => setFirstName(e.target.value)}
+                            required
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="lastName">Nachname</Label>
+                        <Input
+                            id="lastName"
+                            autoComplete="family-name"
+                            value={lastName}
+                            onChange={(e) => setLastName(e.target.value)}
+                            required
+                        />
+                    </div>
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="email">E-Mail</Label>
+                    <Input
+                        id="email"
+                        type="email"
+                        autoComplete="email"
+                        placeholder="m.muster@firma.de"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        required
+                    />
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="password">Passwort</Label>
+                    <Input
+                        id="password"
+                        type="password"
+                        autoComplete="new-password"
+                        minLength={8}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                    />
+                    <p className="text-xs text-muted-foreground">Mindestens 8 Zeichen.</p>
+                </div>
+                <Button type="submit" size="lg" className="mt-2 w-full" disabled={isSubmitting}>
+                    {isSubmitting && <Loader2 className="animate-spin" />}
+                    Account erstellen
+                </Button>
+                <p className="text-center text-sm text-muted-foreground">
+                    Schon registriert?{' '}
+                    <Link href="/login" className="text-neon hover:underline">
+                        Einloggen
+                    </Link>
+                </p>
+            </form>
+        </AuthCard>
     );
 }

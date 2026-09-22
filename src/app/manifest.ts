@@ -2,13 +2,13 @@ import { MetadataRoute } from 'next'
 
 export default function manifest(): MetadataRoute.Manifest {
     return {
-        name: 'Bin Laden App',
+        name: 'Bin Laden',
         short_name: 'Bin Laden',
-        description: 'Ladesäulen-Management für Mitarbeiter',
+        description: 'Ladesäule buchen',
         start_url: '/',
         display: 'standalone',
-        background_color: '#000000',
-        theme_color: '#000000',
+        background_color: '#060809',
+        theme_color: '#060809',
         icons: [
             {
                 src: '/icon',

@@ -1,16 +1,29 @@
-import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import type { Metadata, Viewport } from "next";
+import { Inter, Biryani } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/providers/AuthProvider";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
-import { MobileNav } from "@/components/layout/MobileNav";
-import { DesktopSidebar } from "@/components/layout/DesktopSidebar";
+import { AppShell } from "@/components/layout/AppShell";
+import { Toaster } from "@/components/ui/sonner";
 
-const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
+const biryani = Biryani({ subsets: ["latin"], weight: "900", variable: "--font-biryani", display: "swap" });
 
 export const metadata: Metadata = {
-  title: "Bin Laden App",
-  description: "Ladesäulen-Management für Mitarbeiter",
+  title: "Bin Laden",
+  description: "Ladesäule buchen",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Bin Laden",
+  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#060809",
 };
 
 export default function RootLayout({
@@ -19,8 +32,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="de" suppressHydrationWarning>
-      <body className={inter.className}>
+    <html lang="de" suppressHydrationWarning className={`${inter.variable} ${biryani.variable}`}>
+      <body className="mesh-bg font-sans">
         <ThemeProvider
           attribute="class"
           defaultTheme="dark"
@@ -28,15 +41,8 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <AuthProvider>
-            <div className="flex min-h-screen w-full flex-col bg-muted/40 pb-16 md:pb-0">
-              <DesktopSidebar />
-              <div className="flex flex-col sm:gap-4 sm:py-4 md:pl-64">
-                <main className="flex-1 items-start p-4 sm:px-6 sm:py-0">
-                  {children}
-                </main>
-              </div>
-              <MobileNav />
-            </div>
+            <AppShell>{children}</AppShell>
+            <Toaster position="top-center" />
           </AuthProvider>
         </ThemeProvider>
       </body>

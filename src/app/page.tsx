@@ -2,41 +2,25 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2 } from 'lucide-react';
-import { StartScreen } from '@/components/onboarding/StartScreen';
-import { FeatureSlider } from '@/components/onboarding/FeatureSlider';
+import { Splash } from '@/components/layout/Splash';
 import { useAuth } from '@/components/providers/AuthProvider';
 
-export default function Home() {
-  const { isLoading: authLoading } = useAuth();
-  const router = useRouter();
+const MIN_SPLASH_MS = 900;
 
-  // Onboarding State
-  const [view, setView] = useState<'loading' | 'start' | 'onboarding'>('loading');
+export default function Home() {
+  const { user, isLoading } = useAuth();
+  const router = useRouter();
+  const [minElapsed, setMinElapsed] = useState(false);
 
   useEffect(() => {
-    // Always show start screen on root load
-    setView('start');
+    const timer = setTimeout(() => setMinElapsed(true), MIN_SPLASH_MS);
+    return () => clearTimeout(timer);
   }, []);
 
-  const handleStart = () => {
-    setView('onboarding');
-  };
+  useEffect(() => {
+    if (!minElapsed || isLoading) return;
+    router.replace(user ? '/overview' : '/login');
+  }, [minElapsed, isLoading, user, router]);
 
-  const handleOnboardingComplete = () => {
-    // Redirect to overview
-    router.push('/overview');
-  };
-
-  if (view === 'start') {
-    return <StartScreen onStart={handleStart} />;
-  }
-
-  if (view === 'onboarding') {
-    return <FeatureSlider onComplete={handleOnboardingComplete} />;
-  }
-
-  if (authLoading || view === 'loading') return <div className="flex justify-center p-8"><Loader2 className="animate-spin" /></div>;
-
-  return null;
+  return <Splash />;
 }
