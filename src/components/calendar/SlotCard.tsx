@@ -266,7 +266,7 @@ function ForeignBody({ booking }: { booking: Booking }) {
                         {initials(profile)}
                     </AvatarFallback>
                 </Avatar>
-                <span className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full border border-background bg-neon text-black">
+                <span className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full border border-background bg-primary text-primary-foreground">
                     <LevelIcon size={11} strokeWidth={2.5} />
                 </span>
             </div>

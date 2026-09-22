@@ -54,7 +54,7 @@ function NowLine({ progress }: { progress: number }) {
         <div aria-hidden className="pointer-events-none absolute inset-x-0" style={{ top }}>
             <div className="relative h-px bg-neon shadow-neon">
                 <span className="absolute -left-1 -top-[3px] h-[7px] w-[7px] rounded-full bg-neon animate-now-pulse" />
-                <span className="absolute right-3 -top-2.5 rounded-md bg-primary px-1.5 py-0.5 text-[10px] font-semibold leading-none text-primary-foreground">
+                <span className="absolute right-full top-1/2 mr-3 -translate-y-1/2 rounded-md bg-primary px-1.5 py-0.5 text-[10px] font-semibold leading-none text-primary-foreground">
                     Jetzt
                 </span>
             </div>

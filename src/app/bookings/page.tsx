@@ -1,136 +1,168 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuth } from '@/components/providers/AuthProvider';
-import { supabase } from '@/lib/supabase';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Loader2, Calendar, Clock, AlertTriangle } from 'lucide-react';
-import { format, isPast } from 'date-fns';
+import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
+import { format } from 'date-fns';
+import { de } from 'date-fns/locale';
+import { ArrowLeft, History, Trash2, Zap } from 'lucide-react';
 import { toast } from 'sonner';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useRequireAuth } from '@/hooks/useRequireAuth';
+import { supabase } from '@/lib/supabase';
+import { formatDay, formatTimeRange, hoursBetween } from '@/lib/booking-utils';
+import type { Booking } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { Toaster } from 'sonner';
 
-export default function MyBookingsPage() {
-    const { user, isLoading: authLoading } = useAuth();
-    const [bookings, setBookings] = useState<any[]>([]);
-    const [loading, setLoading] = useState(true);
-    const router = useRouter();
+const UNDO_DURATION_MS = 5000;
 
-    useEffect(() => {
-        if (!authLoading && !user) {
-            router.push('/login');
-        }
+export default function BookingHistoryPage() {
+    const { user, isLoading: authLoading } = useRequireAuth();
+    const [bookings, setBookings] = useState<Booking[] | null>(null);
 
-        if (user && supabase) {
-            fetchMyBookings();
-        }
-    }, [user, authLoading, router]);
-
-    const fetchMyBookings = async () => {
+    const load = useCallback(async () => {
         if (!user || !supabase) return;
-        setLoading(true);
-
         const { data, error } = await supabase
             .from('bookings')
             .select('*')
             .eq('user_id', user.id)
-            .order('start_time', { ascending: true }); // Future first? Or separate lists? Let's just list all.
+            .order('start_time', { ascending: false });
 
         if (error) {
-            console.error('Error fetching bookings:', error);
-            toast.error('Fehler beim Laden deiner Buchungen');
-        } else {
-            setBookings(data || []);
+            toast.error('Buchungen konnten nicht geladen werden.');
+            return;
         }
-        setLoading(false);
-    };
+        setBookings((data ?? []) as Booking[]);
+    }, [user]);
 
-    const handleCancel = async (bookingId: string) => {
-        if (!confirm("Möchtest du diese Buchung wirklich stornieren?")) return;
+    useEffect(() => {
+        load();
+    }, [load]);
+
+    const setStatus = async (booking: Booking, status: Booking['status']) => {
         if (!supabase) return;
-
-        const { error } = await supabase
-            .from('bookings')
-            .update({ status: 'cancelled' })
-            .eq('id', bookingId);
-
+        setBookings(prev => prev?.map(b => (b.id === booking.id ? { ...b, status } : b)) ?? prev);
+        const { error } = await supabase.from('bookings').update({ status }).eq('id', booking.id);
         if (error) {
-            console.error("Cancellation failed:", JSON.stringify(error, null, 2));
-            toast.error(`Fehler beim Stornieren: ${error.message}`);
-        } else {
-            toast.success("Buchung storniert.");
-            fetchMyBookings();
+            setBookings(prev => prev?.map(b => (b.id === booking.id ? booking : b)) ?? prev);
+            toast.error(error.code === '23P01' ? 'Der Slot ist inzwischen vergeben.' : error.message);
+            return false;
         }
+        return true;
     };
 
-    if (authLoading || loading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin" /></div>;
+    const cancel = async (booking: Booking) => {
+        if (!(await setStatus(booking, 'cancelled'))) return;
+        const start = new Date(booking.start_time);
+        const end = new Date(booking.end_time);
+        toast('Buchung gelöscht', {
+            description: `${formatDay(start)} · ${formatTimeRange(start, end)}`,
+            duration: UNDO_DURATION_MS,
+            action: {
+                label: 'Rückgängig',
+                onClick: async () => {
+                    if (await setStatus(booking, 'active')) toast.success('Buchung wiederhergestellt.');
+                },
+            },
+        });
+    };
 
-    const upcomingBookings = bookings.filter(b => !isPast(new Date(b.end_time)) && b.status === 'active');
-    const pastBookings = bookings.filter(b => isPast(new Date(b.end_time)) || b.status !== 'active');
+    const now = new Date();
+    const upcoming = (bookings ?? []).filter(b => b.status === 'active' && new Date(b.end_time) > now)
+        .sort((a, b) => a.start_time.localeCompare(b.start_time));
+    const past = (bookings ?? []).filter(b => b.status !== 'active' || new Date(b.end_time) <= now);
 
     return (
-        <div className="space-y-6">
-            <Toaster position="top-center" />
-            <div>
-                <h1 className="text-3xl font-bold tracking-tight">Meine Buchungen</h1>
-                <p className="text-muted-foreground">Verwalte deine geplanten Ladezeiten.</p>
-            </div>
+        <div className="max-w-2xl space-y-8">
+            <header>
+                <Link href="/profile" className="mb-3 inline-flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground">
+                    <ArrowLeft size={14} />
+                    Profil
+                </Link>
+                <h1 className="font-display text-2xl uppercase tracking-wider">Buchungsverlauf</h1>
+                <p className="mt-1 text-sm text-muted-foreground">Alle deine Ladezeiten, geplant und vergangen.</p>
+            </header>
 
-            <div className="space-y-4">
-                <h2 className="text-xl font-semibold">Aktuell & Zukunft</h2>
-                {upcomingBookings.length === 0 ? (
-                    <Card>
-                        <CardContent className="py-8 text-center text-muted-foreground">
-                            Keine aktiven Buchungen. Zeit zum Laden!
-                        </CardContent>
-                    </Card>
-                ) : (
-                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                        {upcomingBookings.map(booking => (
-                            <BookingCard key={booking.id} booking={booking} onCancel={() => handleCancel(booking.id)} />
-                        ))}
-                    </div>
-                )}
-            </div>
-
-            <div className="space-y-4 pt-4">
-                <h2 className="text-xl font-semibold text-muted-foreground">Vergangen / Storniert</h2>
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 opacity-60 hover:opacity-100 transition-opacity">
-                    {pastBookings.map(booking => (
-                        <BookingCard key={booking.id} booking={booking} isHistory />
-                    ))}
+            {authLoading || bookings === null ? (
+                <div className="space-y-3">
+                    {[0, 1, 2].map(i => <Skeleton key={i} className="h-[72px] rounded-xl" />)}
                 </div>
-            </div>
+            ) : (
+                <>
+                    <section className="space-y-3">
+                        <h2 className="font-display text-xs uppercase tracking-wider text-muted-foreground">Geplant</h2>
+                        {upcoming.length === 0 ? (
+                            <p className="glass rounded-xl p-5 text-sm text-muted-foreground">
+                                Nichts geplant.{' '}
+                                <Link href="/overview" className="text-neon hover:underline">Zum Kalender</Link>
+                            </p>
+                        ) : (
+                            <ul className="space-y-2">
+                                {upcoming.map(b => <HistoryRow key={b.id} booking={b} onCancel={() => cancel(b)} />)}
+                            </ul>
+                        )}
+                    </section>
+
+                    <section className="space-y-3">
+                        <h2 className="font-display text-xs uppercase tracking-wider text-muted-foreground">Vergangen</h2>
+                        {past.length === 0 ? (
+                            <div className="glass flex flex-col items-center rounded-xl px-6 py-12 text-center">
+                                <History size={32} strokeWidth={1.5} className="mb-3 text-muted-foreground opacity-30" />
+                                <p className="text-sm text-muted-foreground">Noch keine vergangenen Buchungen.</p>
+                            </div>
+                        ) : (
+                            <ul className="space-y-2">
+                                {past.map(b => <HistoryRow key={b.id} booking={b} />)}
+                            </ul>
+                        )}
+                    </section>
+                </>
+            )}
         </div>
     );
 }
 
-function BookingCard({ booking, onCancel, isHistory }: { booking: any, onCancel?: () => void, isHistory?: boolean }) {
+function HistoryRow({ booking, onCancel }: { booking: Booking; onCancel?: () => void }) {
     const start = new Date(booking.start_time);
     const end = new Date(booking.end_time);
-    const isCancelled = booking.status === 'cancelled';
+    const cancelled = booking.status === 'cancelled';
+    const reported = booking.charging_status === 'not_charging';
+    const charged = booking.charging_status === 'charging';
 
     return (
-        <Card className={cn(isCancelled && "bg-muted")}>
-            <CardHeader className="pb-2">
-                <CardTitle className="text-base flex justify-between items-start">
-                    <span>{format(start, 'dd.MM.yyyy')}</span>
-                    {isCancelled && <span className="text-xs bg-red-100 text-red-800 px-2 py-0.5 rounded">Storniert</span>}
-                </CardTitle>
-                <CardDescription className="flex items-center gap-1">
-                    <Clock className="w-3 h-3" />
-                    {format(start, 'HH:mm')} - {format(end, 'HH:mm')} ({booking.duration}h)
-                </CardDescription>
-            </CardHeader>
-            {!isHistory && onCancel && (
-                <CardFooter>
-                    <Button variant="destructive" size="sm" className="w-full" onClick={onCancel}>
-                        Stornieren
-                    </Button>
-                </CardFooter>
+        <li className={cn('glass flex items-center gap-4 rounded-xl p-4', cancelled && 'opacity-60')}>
+            <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                    <span>{format(start, 'EEEE, d. MMMM yyyy', { locale: de })}</span>
+                    {cancelled && (
+                        <span className="rounded-md border border-foreground/10 px-1.5 text-[10px] uppercase tracking-widest text-muted-foreground">
+                            Gelöscht
+                        </span>
+                    )}
+                    {reported && (
+                        <span className="rounded-md border border-destructive/25 bg-destructive/10 px-1.5 text-[10px] uppercase tracking-widest text-destructive">
+                            Gemeldet
+                        </span>
+                    )}
+                    {charged && !cancelled && (
+                        <span className="inline-flex items-center gap-1 rounded-md border border-neon/20 bg-neon/10 px-1.5 text-[10px] uppercase tracking-widest text-neon">
+                            <Zap size={9} strokeWidth={3} /> Geladen
+                        </span>
+                    )}
+                </div>
+                <div className="text-xs tabular-nums text-muted-foreground">
+                    {formatTimeRange(start, end)} · {hoursBetween(start, end)} h
+                </div>
+            </div>
+            {onCancel && (
+                <button
+                    type="button"
+                    aria-label="Buchung löschen"
+                    onClick={onCancel}
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors duration-200 hover:bg-destructive/10 hover:text-destructive"
+                >
+                    <Trash2 size={16} />
+                </button>
             )}
-        </Card>
+        </li>
     );
 }

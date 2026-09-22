@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { addDays, startOfWeek } from 'date-fns';
+import { Suspense, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { addDays, isValid, parseISO, startOfWeek } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CalendarHeader, ViewMode } from '@/components/calendar/CalendarHeader';
 import { DayTimeline } from '@/components/calendar/DayTimeline';
@@ -16,9 +17,36 @@ import type { Booking } from '@/lib/types';
 const CLOCK_TICK_MS = 60_000;
 
 export default function OverviewPage() {
+    return (
+        <Suspense fallback={<div className="space-y-8"><Skeleton className="h-[84px] rounded-xl" /><CalendarSkeleton viewMode="day" /></div>}>
+            <OverviewContent />
+        </Suspense>
+    );
+}
+
+/** Liest ?date=yyyy-MM-dd, z. B. aus der Statistik. */
+function useRequestedDate(): Date | null {
+    const params = useSearchParams();
+    const raw = params.get('date');
+    return useMemo(() => {
+        if (!raw) return null;
+        const parsed = parseISO(raw);
+        return isValid(parsed) ? parsed : null;
+    }, [raw]);
+}
+
+function OverviewContent() {
     const { user, isLoading: authLoading } = useRequireAuth();
+    const requestedDate = useRequestedDate();
     const [viewMode, setViewMode] = useState<ViewMode>('day');
-    const [date, setDate] = useState(() => new Date());
+    const [date, setDate] = useState(() => requestedDate ?? new Date());
+
+    useEffect(() => {
+        if (requestedDate) {
+            setDate(requestedDate);
+            setViewMode('day');
+        }
+    }, [requestedDate]);
     const [now, setNow] = useState(() => new Date());
     const [reportTarget, setReportTarget] = useState<Booking | null>(null);
 
@@ -57,7 +85,7 @@ export default function OverviewPage() {
         setViewMode('day');
     };
 
-    const showSkeleton = authLoading || (loading && bookings.length === 0);
+    const showSkeleton = authLoading || loading;
 
     return (
         <div className="space-y-8">

@@ -130,7 +130,7 @@ function WeekCell({ state, onBook, onOpenDay }: { state: SlotState; onBook: () =
                 </AvatarFallback>
             </Avatar>
             {charging && (
-                <span className="absolute -right-0.5 -top-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-neon text-black">
+                <span className="absolute -right-0.5 -top-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-primary text-primary-foreground">
                     <Zap size={8} strokeWidth={3} />
                 </span>
             )}
