@@ -5,7 +5,7 @@ import { DesktopSidebar } from "./DesktopSidebar";
 import { MobileNav } from "./MobileNav";
 
 /** Routen ohne Navigation: Splash und Auth. */
-const BARE_ROUTES = ["/", "/login", "/register"];
+const BARE_ROUTES = ["/", "/login", "/register", "/forgot-password", "/reset-password"];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();

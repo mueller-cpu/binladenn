@@ -15,6 +15,7 @@ import { useRequireAuth } from '@/hooks/useRequireAuth';
 import { supabase } from '@/lib/supabase';
 import { calculateLevel, getNextLevel } from '@/lib/gamification';
 import { cn } from '@/lib/utils';
+import { validateNewPassword, MIN_PASSWORD_LENGTH } from '@/lib/password';
 
 const POINTS_PER_CHARGE = 10;
 
@@ -40,6 +41,9 @@ export default function ProfilePage() {
     const [phone, setPhone] = useState('');
     const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
     const [points, setPoints] = useState(0);
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [changingPassword, setChangingPassword] = useState(false);
 
     useEffect(() => setMounted(true), []);
 
@@ -114,6 +118,26 @@ export default function ProfilePage() {
         setSaving(false);
         if (error) toast.error('Speichern fehlgeschlagen.');
         else toast.success('Profil gespeichert.');
+    };
+
+    const handlePasswordChange = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!supabase) return;
+        const problem = validateNewPassword(newPassword, confirmPassword);
+        if (problem) {
+            toast.error(problem);
+            return;
+        }
+        setChangingPassword(true);
+        const { error } = await supabase.auth.updateUser({ password: newPassword });
+        setChangingPassword(false);
+        if (error) {
+            toast.error(`Passwort konnte nicht geändert werden: ${error.message}`);
+            return;
+        }
+        setNewPassword('');
+        setConfirmPassword('');
+        toast.success('Passwort geändert.');
     };
 
     const level = calculateLevel(points);
@@ -201,6 +225,41 @@ export default function ProfilePage() {
                     <Button type="submit" disabled={saving}>
                         {saving && <Loader2 className="animate-spin" />}
                         Speichern
+                    </Button>
+                </div>
+            </form>
+
+            <form onSubmit={handlePasswordChange} className="glass space-y-4 rounded-xl p-5 sm:p-6">
+                <h2 className="font-display text-xs uppercase tracking-wider text-muted-foreground">Passwort ändern</h2>
+                <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-2">
+                        <Label htmlFor="newPassword">Neues Passwort</Label>
+                        <Input
+                            id="newPassword"
+                            type="password"
+                            autoComplete="new-password"
+                            minLength={MIN_PASSWORD_LENGTH}
+                            value={newPassword}
+                            onChange={e => setNewPassword(e.target.value)}
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="confirmPassword">Wiederholen</Label>
+                        <Input
+                            id="confirmPassword"
+                            type="password"
+                            autoComplete="new-password"
+                            minLength={MIN_PASSWORD_LENGTH}
+                            value={confirmPassword}
+                            onChange={e => setConfirmPassword(e.target.value)}
+                        />
+                    </div>
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                    <p className="text-xs text-muted-foreground">Mindestens {MIN_PASSWORD_LENGTH} Zeichen.</p>
+                    <Button type="submit" variant="outline" disabled={changingPassword || newPassword.length === 0}>
+                        {changingPassword && <Loader2 className="animate-spin" />}
+                        Passwort speichern
                     </Button>
                 </div>
             </form>
